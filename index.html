@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cosmic Explorer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      color: #fff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    /* Custom Cursor */
+    .cursor {
+      position: fixed;
+      width: 12px; height: 12px;
+      background: #fff;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 99999;
+      mix-blend-mode: difference;
+    }
+    .cursor-ring {
+      position: fixed;
+      width: 40px; height: 40px;
+      border: 1px solid rgba(255,255,255,0.4);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 99998;
+      transition: all 0.15s ease;
+      transform: translate(-50%, -50%);
+    }
+
+    canvas { position: fixed; top: 0; left: 0; z-index: 0; }
+
+    .section {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Hero */
+    .hero { flex-direction: column; text-align: center; padding: 2rem; }
+    .hero-tag {
+      font-size: 0.75rem; letter-spacing: 0.4em; text-transform: uppercase;
+      color: #888; margin-bottom: 2rem; animation: fadeUp 1s ease both;
+    }
+    .hero-title {
+      font-size: clamp(3rem, 10vw, 9rem); font-weight: 800; line-height: 1;
+      background: linear-gradient(135deg, #fff 0%, #a78bfa 40%, #38bdf8 80%, #fff 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      animation: fadeUp 1s 0.2s ease both; letter-spacing: -0.03em;
+    }
+    .hero-sub {
+      margin-top: 1.5rem; font-size: 1.1rem; color: #666;
+      max-width: 500px; line-height: 1.7; animation: fadeUp 1s 0.4s ease both;
+    }
+    .hero-clock {
+      margin-top: 3rem; font-size: 4rem; font-weight: 200;
+      font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.15);
+      letter-spacing: 0.1em; animation: fadeUp 1s 0.6s ease both;
+    }
+    .hero-scroll {
+      position: absolute; bottom: 2rem;
+      display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+      color: #444; font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;
+      animation: fadeIn 2s 1.5s ease both;
+    }
+    .scroll-line {
+      width: 1px; height: 60px;
+      background: linear-gradient(to bottom, transparent, #444);
+      animation: scrollDrop 1.5s 2s ease-in-out infinite;
+    }
+
+    /* Cards */
+    .cards-section { padding: 6rem 2rem; flex-direction: column; gap: 4rem; }
+    .section-label {
+      font-size: 0.7rem; letter-spacing: 0.4em; color: #555;
+      text-transform: uppercase; text-align: center;
+    }
+    .cards {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem; max-width: 1100px; width: 100%;
+    }
+    .card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px; padding: 2.5rem;
+      transition: all 0.4s ease; position: relative; overflow: hidden;
+      cursor: pointer;
+    }
+    .card::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(circle at var(--mx,50%) var(--my,50%), rgba(167,139,250,0.1), transparent 60%);
+      opacity: 0; transition: opacity 0.4s;
+    }
+    .card:hover::before { opacity: 1; }
+    .card:hover {
+      border-color: rgba(167,139,250,0.4);
+      transform: translateY(-6px);
+      box-shadow: 0 20px 60px rgba(167,139,250,0.1);
+    }
+    .card-hint {
+      position: absolute; bottom: 1.2rem; right: 1.5rem;
+      font-size: 0.65rem; color: #444; letter-spacing: 0.15em; text-transform: uppercase;
+      transition: color 0.3s;
+    }
+    .card:hover .card-hint { color: #a78bfa; }
+    .card-icon { font-size: 2rem; margin-bottom: 1.2rem; }
+    .card-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.7rem; color: #e2e8f0; }
+    .card-text { font-size: 0.9rem; color: #666; line-height: 1.7; }
+
+    /* ── MODAL ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 10000;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(16px) saturate(1.2);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.5rem;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+    .modal-backdrop.open { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: #0a0a0f;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 28px;
+      max-width: 780px; width: 100%;
+      max-height: 88vh; overflow-y: auto;
+      position: relative;
+      transform: translateY(40px) scale(0.96);
+      transition: transform 0.45s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease;
+      opacity: 0;
+    }
+    .modal-backdrop.open .modal { transform: translateY(0) scale(1); opacity: 1; }
+
+    .modal::-webkit-scrollbar { width: 4px; }
+    .modal::-webkit-scrollbar-track { background: transparent; }
+    .modal::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+    .modal-close {
+      position: absolute; top: 1.2rem; right: 1.2rem; z-index: 2;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      color: #888; font-size: 1.1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .modal-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+    /* Animation Stage */
+    .modal-stage {
+      height: 260px; position: relative; overflow: hidden;
+      border-radius: 28px 28px 0 0;
+      background: #050508;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-stage canvas { position: absolute; top:0; left:0; }
+
+    /* Modal Body */
+    .modal-body { padding: 2.5rem; }
+    .modal-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
+    .modal-icon { font-size: 2.5rem; }
+    .modal-title {
+      font-size: 2rem; font-weight: 700;
+      background: linear-gradient(135deg, #fff, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .modal-lead {
+      font-size: 1.05rem; color: #aaa; line-height: 1.8; margin-bottom: 2rem;
+      border-left: 2px solid rgba(167,139,250,0.4); padding-left: 1.2rem;
+    }
+
+    .modal-facts {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    .fact-box {
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px; padding: 1.2rem;
+    }
+    .fact-num {
+      font-size: 1.8rem; font-weight: 800; line-height: 1;
+      background: linear-gradient(135deg, #a78bfa, #38bdf8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .fact-label { font-size: 0.75rem; color: #555; margin-top: 0.3rem; letter-spacing: 0.1em; }
+
+    .modal-sections { display: flex; flex-direction: column; gap: 1.5rem; }
+    .modal-section-title {
+      font-size: 0.7rem; letter-spacing: 0.3em; text-transform: uppercase;
+      color: #a78bfa; margin-bottom: 0.5rem;
+    }
+    .modal-section-text { font-size: 0.9rem; color: #777; line-height: 1.8; }
+
+    /* Orb Section */
+    .orb-section { padding: 6rem 2rem; flex-direction: column; gap: 3rem; text-align: center; }
+    .orb-container { position: relative; width: 300px; height: 300px; }
+    .orb {
+      width: 200px; height: 200px; border-radius: 50%;
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      background: radial-gradient(circle at 35% 35%, #a78bfa, #7c3aed 50%, #1e1b4b);
+      box-shadow: 0 0 40px rgba(167,139,250,0.4), 0 0 80px rgba(124,58,237,0.2), inset 0 0 40px rgba(0,0,0,0.4);
+      animation: float 4s ease-in-out infinite, spin 20s linear infinite;
+      cursor: pointer;
+    }
+    .orb-ring {
+      position: absolute; border-radius: 50%;
+      border: 1px solid rgba(167,139,250,0.2);
+      top: 50%; left: 50%; transform: translate(-50%,-50%);
+      animation: ringPulse 3s ease-in-out infinite;
+    }
+    .orb-ring:nth-child(2) { width:250px; height:250px; animation-delay:0s; }
+    .orb-ring:nth-child(3) { width:290px; height:290px; animation-delay:0.5s; }
+    .orb-ring:nth-child(4) { width:330px; height:330px; animation-delay:1s; }
+    .orb-label { font-size:0.8rem; color:#555; letter-spacing:0.3em; text-transform:uppercase; }
+    .orb-counter {
+      font-size:5rem; font-weight:800;
+      background: linear-gradient(135deg,#a78bfa,#38bdf8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      line-height:1; font-variant-numeric:tabular-nums;
+    }
+
+    /* Stats */
+    .stats-section { padding: 6rem 2rem; flex-direction: column; gap: 4rem; }
+    .stats { display:flex; gap:4rem; flex-wrap:wrap; justify-content:center; }
+    .stat { text-align:center; }
+    .stat-num {
+      font-size:4rem; font-weight:800;
+      background: linear-gradient(135deg,#fff 0%,#a78bfa 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; line-height:1;
+    }
+    .stat-label { margin-top:0.5rem; font-size:0.8rem; color:#555; letter-spacing:0.2em; text-transform:uppercase; }
+
+    .footer {
+      padding:4rem 2rem; text-align:center;
+      border-top:1px solid rgba(255,255,255,0.05);
+      color:#333; font-size:0.85rem; position:relative; z-index:1; line-height:2;
+    }
+
+    /* Keyframes */
+    @keyframes fadeUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    @keyframes scrollDrop { 0%,100%{transform:scaleY(0);transform-origin:top} 50%{transform:scaleY(1);transform-origin:top} }
+    @keyframes float { 0%,100%{transform:translate(-50%,-50%) translateY(0)} 50%{transform:translate(-50%,-50%) translateY(-15px)} }
+    @keyframes spin { from{filter:hue-rotate(0deg)} to{filter:hue-rotate(360deg)} }
+    @keyframes ringPulse { 0%,100%{opacity:.15;transform:translate(-50%,-50%) scale(1)} 50%{opacity:.05;transform:translate(-50%,-50%) scale(1.05)} }
+
+    /* ── Rocket Section ── */
+    .rocket-section {
+      flex-direction: column; gap: 3rem; padding: 6rem 2rem; min-height: 100vh;
+    }
+    .rocket-stage {
+      position: relative; width: 100%; max-width: 700px; height: 420px;
+      border: 1px solid rgba(255,255,255,0.07); border-radius: 28px;
+      background: rgba(255,255,255,0.02); overflow: hidden;
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    .rocket-stage canvas { position:absolute; top:0; left:0; width:100%; height:100%; }
+
+    .rocket-wrap {
+      position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
+      z-index: 2; transition: bottom 2.5s cubic-bezier(0.4,0,0.2,1), opacity 0.5s;
+    }
+    .rocket-wrap.launched { bottom: 480px; opacity: 0; }
+
+    .rocket {
+      display: flex; flex-direction: column; align-items: center;
+      animation: rocketHover 2s ease-in-out infinite;
+    }
+    .rocket.igniting { animation: rocketShake 0.1s linear infinite; }
+
+    .rocket-body {
+      width: 54px; height: 110px;
+      background: linear-gradient(180deg, #e2e8f0 0%, #94a3b8 60%, #64748b 100%);
+      border-radius: 50% 50% 10% 10% / 60% 60% 10% 10%;
+      position: relative; box-shadow: inset -6px 0 12px rgba(0,0,0,0.3), 0 0 20px rgba(167,139,250,0.2);
+    }
+    .rocket-window {
+      position: absolute; top: 28px; left: 50%; transform: translateX(-50%);
+      width: 20px; height: 20px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #7dd3fc, #1e40af 70%);
+      border: 2px solid rgba(255,255,255,0.4);
+      box-shadow: 0 0 10px rgba(125,211,252,0.6);
+    }
+    .rocket-fin {
+      position: absolute; bottom: 0; width: 18px; height: 32px;
+      background: linear-gradient(135deg, #a78bfa, #7c3aed);
+      clip-path: polygon(100% 0, 100% 100%, 0 100%);
+    }
+    .rocket-fin.left { left: -14px; clip-path: polygon(0 0, 100% 100%, 0 100%); }
+    .rocket-fin.right { right: -14px; }
+    .rocket-nozzle {
+      position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+      width: 22px; height: 14px;
+      background: linear-gradient(180deg, #475569, #1e293b);
+      border-radius: 0 0 8px 8px;
+    }
+
+    .rocket-flames {
+      display: flex; gap: 4px; margin-top: 2px;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .rocket-flames.active { opacity: 1; }
+    .flame {
+      border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%;
+      animation: flicker 0.1s linear infinite alternate;
+    }
+    .f1 { width:12px; height:34px; background: linear-gradient(to bottom, #fff8, #f97316, transparent); animation-delay:0s; }
+    .f2 { width:16px; height:46px; background: linear-gradient(to bottom, #fff8, #ef4444, transparent); animation-delay:0.05s; }
+    .f3 { width:10px; height:28px; background: linear-gradient(to bottom, #fff8, #f97316, transparent); animation-delay:0.02s; }
+
+    .launch-btn {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 3; padding: 0.8rem 2.5rem;
+      background: linear-gradient(135deg, #7c3aed, #a78bfa);
+      border: none; border-radius: 999px; color: #fff;
+      font-size: 1rem; font-weight: 700; letter-spacing: 0.1em;
+      cursor: pointer; transition: all 0.3s;
+      box-shadow: 0 0 30px rgba(167,139,250,0.4);
+    }
+    .launch-btn:hover { transform: translateX(-50%) scale(1.06); box-shadow: 0 0 50px rgba(167,139,250,0.6); }
+    .launch-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: translateX(-50%); }
+
+    .countdown {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      font-size: 6rem; font-weight: 900; z-index: 3;
+      background: linear-gradient(135deg, #fff, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    }
+    .rocket-msg {
+      position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%);
+      font-size: 1.4rem; font-weight: 700; z-index: 3; text-align: center;
+      color: #a78bfa; opacity: 0; pointer-events: none; white-space: nowrap;
+      transition: opacity 0.6s;
+    }
+
+    @keyframes rocketHover { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+    @keyframes rocketShake { 0%{transform:translateX(-2px)} 100%{transform:translateX(2px)} }
+    @keyframes flicker { from{transform:scaleX(1) scaleY(1)} to{transform:scaleX(0.85) scaleY(0.9)} }
+
+    body::after {
+      content:''; position:fixed; inset:0;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events:none; z-index:2; opacity:0.4;
+    }
+  </style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+<canvas id="stars"></canvas>
+
+<!-- Hero -->
+<section class="section hero">
+  <p class="hero-tag">✦ Willkommen im Universum ✦</p>
+  <h1 class="hero-title"><span style="-webkit-text-fill-color:transparent;background:linear-gradient(135deg,#38bdf8,#a78bfa);-webkit-background-clip:text;background-clip:text;">IKA</span><span style="-webkit-text-fill-color:rgba(255,255,255,0.18);font-weight:200;letter-spacing:-0.01em;">'s</span> COSMIC</h1>
+  <p class="hero-sub">Eine Reise durch Raum und Zeit — interaktiv, dynamisch, unendlich.</p>
+  <div class="hero-clock" id="clock">00:00:00</div>
+  <div class="hero-scroll"><div class="scroll-line"></div>scroll</div>
+</section>
+
+<!-- Cards -->
+<section class="section cards-section">
+  <p class="section-label">✦ Das Universum ✦</p>
+  <div class="cards">
+
+    <div class="card" data-modal="galaxien">
+      <div class="card-icon">🌌</div>
+      <div class="card-title">Galaxien</div>
+      <div class="card-text">Über 2 Billionen Galaxien existieren im beobachtbaren Universum, jede mit Milliarden von Sternen und unzähligen Welten.</div>
+      <div class="card-hint">Mehr erfahren →</div>
+    </div>
+
+    <div class="card" data-modal="blackhole">
+      <div class="card-icon">⚡</div>
+      <div class="card-title">Schwarze Löcher</div>
+      <div class="card-text">Regionen der Raumzeit, aus denen nicht einmal Licht entkommen kann. Singularitäten der unendlichen Dichte.</div>
+      <div class="card-hint">Mehr erfahren →</div>
+    </div>
+
+    <div class="card" data-modal="neutron">
+      <div class="card-icon">💫</div>
+      <div class="card-title">Neutronensterne</div>
+      <div class="card-text">Die dichtesten bekannten Objekte im Universum — komprimiert auf nur 20 km Durchmesser, aber schwerer als die Sonne.</div>
+      <div class="card-hint">Mehr erfahren →</div>
+    </div>
+
+    <div class="card" data-modal="darkmatter">
+      <div class="card-icon">🌠</div>
+      <div class="card-title">Dunkle Materie</div>
+      <div class="card-text">27% des Universums besteht aus etwas, das wir nicht sehen, nicht messen, aber spüren können — durch die Gravitation.</div>
+      <div class="card-hint">Mehr erfahren →</div>
+    </div>
+
+    <div class="card" data-modal="exoplanets">
+      <div class="card-icon">🔭</div>
+      <div class="card-title">Exoplaneten</div>
+      <div class="card-text">Über 5.500 bestätigte Planeten außerhalb unseres Sonnensystems. Manche könnten Leben beherbergen.</div>
+      <div class="card-hint">Mehr erfahren →</div>
+    </div>
+
+    <div class="card" data-modal="gravwaves">
+      <div class="card-icon">🌊</div>
+      <div class="card-title">Gravitationswellen</div>
+      <div class="card-text">Kräuselungen in der Raumzeit selbst — erzeugt durch kollidierenden Schwarze Löcher, reisen mit Lichtgeschwindigkeit.</div>
+      <div class="card-hint">Mehr erfahren →</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Orb -->
+<section class="section orb-section">
+  <p class="section-label">✦ Klick auf den Orb ✦</p>
+  <div class="orb-container">
+    <div class="orb-ring"></div><div class="orb-ring"></div><div class="orb-ring"></div>
+    <div class="orb" id="orb"></div>
+  </div>
+  <div class="orb-counter" id="orbCounter">0</div>
+  <div class="orb-label">Energie gesammelt</div>
+</section>
+
+<!-- Stats -->
+<section class="section stats-section">
+  <p class="section-label">✦ Kosmische Zahlen ✦</p>
+  <div class="stats">
+    <div class="stat"><div class="stat-num" data-target="13800000000">0</div><div class="stat-label">Jahre alt (Universum)</div></div>
+    <div class="stat"><div class="stat-num" data-target="299792">0</div><div class="stat-label">km/s Lichtgeschwindigkeit</div></div>
+    <div class="stat"><div class="stat-num" data-target="2000000000000">0</div><div class="stat-label">Galaxien</div></div>
+    <div class="stat"><div class="stat-num" data-target="8">0</div><div class="stat-label">Planeten im Sonnensystem</div></div>
+  </div>
+</section>
+
+<!-- Rocket Launch Section -->
+<section class="section rocket-section" id="rocketSection">
+  <p class="section-label">✦ Starte deine Reise ✦</p>
+  <div class="rocket-stage">
+    <canvas id="cvs-rocket"></canvas>
+    <div class="rocket-wrap" id="rocketWrap">
+      <div class="rocket" id="rocket">
+        <div class="rocket-body">
+          <div class="rocket-window"></div>
+          <div class="rocket-fin left"></div>
+          <div class="rocket-fin right"></div>
+          <div class="rocket-nozzle"></div>
+        </div>
+        <div class="rocket-flames" id="rocketFlames">
+          <div class="flame f1"></div>
+          <div class="flame f2"></div>
+          <div class="flame f3"></div>
+        </div>
+      </div>
+    </div>
+    <button class="launch-btn" id="launchBtn">🚀 START</button>
+    <div class="countdown" id="countdown"></div>
+    <div class="rocket-msg" id="rocketMsg"></div>
+  </div>
+</section>
+
+<footer class="footer">✦ Cosmic Explorer mit Ika ✦ &nbsp;|&nbsp; Erstellt mit reinem HTML &amp; CSS &amp; JS<br>Das Universum ist groß. Erkunde es.</footer>
+
+<!-- ═══════════════ MODALS ═══════════════ -->
+
+<!-- Galaxien -->
+<div class="modal-backdrop" id="modal-galaxien">
+  <div class="modal">
+    <button class="modal-close">✕</button>
+    <div class="modal-stage"><canvas id="cvs-galaxien"></canvas></div>
+    <div class="modal-body">
+      <div class="modal-header"><div class="modal-icon">🌌</div><div class="modal-title">Galaxien</div></div>
+      <p class="modal-lead">Galaxien sind die Grundbausteine des Universums — riesige kosmische Inseln aus Sternen, Gas, Staub und Dunkler Materie, die durch Gravitation zusammengehalten werden.</p>
+      <div class="modal-facts">
+        <div class="fact-box"><div class="fact-num">2 Bio.</div><div class="fact-label">Galaxien im Universum</div></div>
+        <div class="fact-box"><div class="fact-num">100.000</div><div class="fact-label">Lichtjahre (Milchstraße)</div></div>
+        <div class="fact-box"><div class="fact-num">200–400 Mrd.</div><div class="fact-label">Sterne in der Milchstraße</div></div>
+        <div class="fact-box"><div class="fact-num">2,5 Mio.</div><div class="fact-label">Lichtjahre bis Andromeda</div></div>
+      </div>
+      <div class="modal-sections">
+        <div>
+          <div class="modal-section-title">✦ Typen von Galaxien</div>
+          <div class="modal-section-text">Es gibt drei Haupttypen: <strong style="color:#ccc">Spiralgalaxien</strong> (wie unsere Milchstraße) mit eleganten Armen aus Sternen und Nebeln, <strong style="color:#ccc">elliptische Galaxien</strong> — riesige, ältere Strukturen mit wenig Gas und kaum Sternentstehung — und <strong style="color:#ccc">irreguläre Galaxien</strong>, die durch Kollisionen entstellt wurden.</div>
+        </div>
+        <div>
+          <div class="modal-section-title">✦ Kollisionen & Verschmelzungen</div>
+          <div class="modal-section-text">Galaxien kollidieren regelmäßig — in etwa 4,5 Milliarden Jahren wird die Milchstraße mit der Andromeda-Galaxie verschmelzen. Trotz der riesigen Massen kollidieren dabei kaum Sterne direkt, weil die Abstände zwischen ihnen enorm sind. Das Ergebnis wird eine riesige elliptische Galaxie sein.</div>
+        </div>
+        <div>
+          <div class="modal-section-title">✦ Das Kosmische Netz</div>
+          <div class="modal-section-text">Galaxien sind nicht zufällig verteilt. Sie bilden Filamente, Wände und Superhaufen — das sogenannte kosmische Netz. Die Hohlräume dazwischen heißen Voids und können hunderte Millionen Lichtjahre groß sein.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Schwarze Löcher -->
+<div class="modal-backdrop" id="modal-blackhole">
+  <div class="modal">
+    <button class="modal-close">✕</button>
+    <div class="modal-stage"><canvas id="cvs-blackhole"></canvas></div>
+    <div class="modal-body">
+      <div class="modal-header"><div class="modal-icon">⚡</div><div class="modal-title">Schwarze Löcher</div></div>
+      <p class="modal-lead">Schwarze Löcher sind Regionen der Raumzeit mit so extremer Gravitation, dass nichts — nicht einmal Licht — der Anziehungskraft entkommen kann. Sie entstehen aus dem Tod massereicher Sterne.</p>
+      <div class="modal-facts">
+        <div class="fact-box"><div class="fact-num">4 Mio. M☉</div><div class="fact-label">Sagittarius A* (Milchstraße)</div></div>
+        <div class="fact-box"><div class="fact-num">6,5 Mrd. M☉</div><div class="fact-label">M87* (erstes Foto 2019)</div></div>
+        <div class="fact-box"><div class="fact-num">~3 km</div><div class="fact-label">Schwarzschild-Radius (Erde)</div></div>
+        <div class="fact-box"><div class="fact-num">∞</div><div class="fact-label">Dichte an der Singularität</div></div>
+      </div>
+      <div class="modal-sections">
+        <div>
+          <div class="modal-section-title">✦ Der Ereignishorizont</div>
+          <div class="modal-section-text">Der Ereignishorizont ist die Grenze, ab der die Fluchtgeschwindigkeit die Lichtgeschwindigkeit überschreitet. Für einen außenstehenden Beobachter würde ein Objekt, das in ein Schwarzes Loch fällt, am Horizont einfrieren und langsam verblassen — Zeitdilatation durch extreme Gravitation.</div>
+        </div>
+        <div>
+          <div class="modal-section-title">✦ Hawking-Strahlung</div>
+          <div class="modal-section-text">Stephen Hawking entdeckte theoretisch, dass Schwarze Löcher langsam Energie abstrahlen und verdampfen. Durch Quantenfluktuationen am Ereignishorizont entsteht Strahlung — über unvorstellbar lange Zeiträume verliert das Schwarze Loch so seine gesamte Masse.</div>
+        </div>
+        <div>
+          <div class="modal-section-title">✦ Spaghettifizierung</div>
+          <div class="modal-section-text">Nähert sich ein Objekt einem Schwarzen Loch, wird es durch die unterschiedliche Gravitationskraft an verschiedenen Punkten in die Länge gezogen und quer zusammengedrückt — wie ein kosmischer Nudelmacher. Dieser Prozess heißt Spaghettifizierung.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Neutronensterne -->
+<div class="modal-backdrop" id="modal-neutron">
+  <div class="modal">
+    <button class="modal-close">✕</button>
+    <div class="modal-stage"><canvas id="cvs-neutron"></canvas></div>
+    <div class="modal-body">
+      <div class="modal-header"><div class="modal-icon">💫</div><div class="modal-title">Neutronensterne</div></div>
+      <p class="modal-lead">Neutronensterne sind die ultrakompakten Überreste massereicher Sterne nach einer Supernova-Explosion. Ein Teelöffel ihrer Materie würde auf der Erde etwa eine Milliarde Tonnen wiegen.</p>
+      <div class="modal-facts">
+        <div class="fact-box"><div class="fact-num">~20 km</div><div class="fact-label">Durchmesser</div></div>
+        <div class="fact-box"><div class="fact-num">1–2 M☉</div><div class="fact-label">Masse</div></div>
+        <div class="fact-box"><div class="fact-num">716 Hz</div><div class="fact-label">Max. Rotationsgeschw. (PSR J1748)</div></div>
+        <div class="fact-box"><div class="fact-num">10¹² Tesla</div><div class="fact-label">Magnetfeld (Magnetar)</div></div>
+      </div>
+      <div class="modal-sections">
+        <div>
+          <div class="modal-section-title">✦ Pulsare</div>
+          <div class="modal-section-text">Rotierende Neutronensterne senden gebündelte Strahlung aus ihren Magnetpolen — ähnlich einem kosmischen Leuchtturm. Wenn dieser Strahl die Erde trifft, nehmen wir regelmäßige Pulse wahr. Manche Pulsare sind so präzise wie Atomuhren.</div>
+        </div>
+        <div>
+          <div class="modal-section-title">✦ Magnetare</div>
+          <div class="modal-section-text">Magnetare sind Neutronensterne mit dem stärksten bekannten Magnetfeld im Universum — bis zu 10¹⁵ Tesla. In 200.000 km Entfernung würde ein Magnetar alle Kreditkartendaten auf Erde löschen. Glücklicherweise ist der nächste 13.000 Lichtjahre entfernt.</div>
+        </div>
+        <div>
+          <div class="modal-section-title">✦ Neutronenstern-Kollisionen</div>
+          <div class="modal-section-text">Wenn zwei Neutronensterne verschmelzen, erzeugen sie Gravitationswellen und einen Kilonova-Blitz — die Schmiede schwerer Elemente wie Gold und Platin. Das Gold in deinem Schmuck entstand in einem solchen kosmischen Ereignis vor Milliarden von Jahren.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dunkle Materie -->
+<div class="modal-backdrop" id="modal-darkmatter">
+  <div class="modal">
+    <button class="modal-close">✕</button>
+    <div class="modal-stage"><canvas id="cvs-darkmatter"></canvas></div>
+    <div class="modal-body">
+      <div class="modal-header"><div class="modal-icon">🌠</div><div class="modal-title">Dunkle Materie</div></div>
+      <p class="modal-lead">Dunkle Materie ist unsichtbar, nicht elektrisch geladen und interagiert kaum mit normaler Materie — aber sie macht 27% des gesamten Universums aus und hält Galaxien zusammen.</p>
+      <div class="modal-facts">
+        <div class="fact-box"><div class="fact-num">27%</div><div class="fact-label">Dunkle Materie</div></div>
+        <div class="fact-box"><div class="fact-num">68%</div><div class="fact-label">Dunkle Energie</div></div>
+        <div class="fact-box"><div class="fact-num">5%</div><div class="fact-label">Normale (sichtbare) Materie</div></div>
+        <div class="fact-box"><div class="fact-num">???</div><div class="fact-label">Was es ist — unbekannt</div></div>
+      </div>
+      <div class="modal-sections">
+        <div>
+          <div class="modal-section-title">✦ Der Beweis</div>
+          <div class="modal-section-text">Fritz Zwicky entdeckte 1933, dass Galaxien in Haufen sich viel schneller bewegen, als sichtbare Materie erlauben würde. Vera Rubin zeigte in den 1970ern, dass die Außenbereiche von Galaxien gleich schnell rotieren wie die Innenbereiche — unmöglich ohne unsichtbare Masse.</div>
+        </div>
+        <div>
+          <div class="modal-section-title">✦ Was könnte es sein?</div>
+          <div class="modal-section-text">Kandidaten sind WIMPs (schwach wechselwirkende massive Teilchen), Axionen, sterile Neutrinos oder sogar primordiale Schwarze Löcher. Trotz Jahrzehnten der Suche konnte noch kein Dunkle-Materie-Teilchen direkt nachgewiesen werden.</div>
+        </div>
+        <div>
+          <div class="modal-section-title">✦ Dunkle Energie — noch mysteriöser</div>
+          <div class="modal-section-text">Wenn Dunkle Materie die Expansion verlangsamen sollte, tut Dunkle Energie das Gegenteil: Sie beschleunigt die Expansion des Universums. Entdeckt 1998, macht sie 68% des Universums aus — und niemand weiß, was sie ist.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Exoplaneten -->
+<div class="modal-backdrop" id="modal-exoplanets">
+  <div class="modal">
+    <button class="modal-close">✕</button>
+    <div class="modal-stage"><canvas id="cvs-exoplanets"></canvas></div>
+    <div class="modal-body">
+      <div class="modal-header"><div class="modal-icon">🔭</div><div class="modal-title">Exoplaneten</div></div>
+      <p class="modal-lead">Exoplaneten sind Planeten, die andere Sterne umkreisen. Seit der ersten Bestätigung 1992 haben wir über 5.500 entdeckt — und die Zahl wächst täglich.</p>
+      <div class="modal-facts">
+        <div class="fact-box"><div class="fact-num">5.500+</div><div class="fact-label">Bestätigte Exoplaneten</div></div>
+        <div class="fact-box"><div class="fact-num">~11 Mrd.</div><div class="fact-label">Erdähnliche Planeten in der Milchstraße (Schätzung)</div></div>
+        <div class="fact-box"><div class="fact-num">1.400 Lj</div><div class="fact-label">Entfernung zu Kepler-452b</div></div>
+        <div class="fact-box"><div class="fact-num">385°C</div><div class="fact-label">Oberfläche Venus (heißester Planet)</div></div>
+      </div>
+      <div class="modal-sections">
+        <div>
+          <div class="modal-section-title">✦ Die habitable Zone</div>
+          <div class="modal-section-text">Die "Goldilöckchen-Zone" ist der Bereich um einen Stern, in dem flüssiges Wasser existieren kann. Nicht zu heiß, nicht zu kalt — genau richtig. Planeten in dieser Zone gelten als potenziell lebensfreundlich. Kepler-452b umkreist einen sonnenähnlichen Stern in dieser Zone.</div>
+        </div>
+        <div>
+          <div class="modal-section-title">✦ TRAPPIST-1 System</div>
+          <div class="modal-section-text">Nur 39 Lichtjahre entfernt kreisen 7 erdgroße Planeten um den roten Zwergstern TRAPPIST-1. Drei davon liegen in der habitablen Zone. Es ist das vielversprechendste System für die Suche nach außerirdischem Leben — und relativ nah.</div>
+        </div>
+        <div>
+          <div class="modal-section-title">✦ Wie findet man sie?</div>
+          <div class="modal-section-text">Die Transit-Methode misst minimale Helligkeitsabfälle, wenn ein Planet vor seinem Stern vorbeizieht. Das James Webb Space Telescope kann sogar die Atmosphären von Exoplaneten analysieren — und nach chemischen Lebenszeichen wie Sauerstoff oder Methan suchen.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Gravitationswellen -->
+<div class="modal-backdrop" id="modal-gravwaves">
+  <div class="modal">
+    <button class="modal-close">✕</button>
+    <div class="modal-stage"><canvas id="cvs-gravwaves"></canvas></div>
+    <div class="modal-body">
+      <div class="modal-header"><div class="modal-icon">🌊</div><div class="modal-title">Gravitationswellen</div></div>
+      <p class="modal-lead">Gravitationswellen sind Kräuselungen in der Raumzeit selbst, die von Einstein 1916 vorhergesagt und erst 2015 durch LIGO direkt nachgewiesen wurden — einer der größten wissenschaftlichen Durchbrüche des 21. Jahrhunderts.</p>
+      <div class="modal-facts">
+        <div class="fact-box"><div class="fact-num">299.792 km/s</div><div class="fact-label">Ausbreitungsgeschwindigkeit</div></div>
+        <div class="fact-box"><div class="fact-num">10⁻²¹ m</div><div class="fact-label">Gemessene Verzerrung (LIGO)</div></div>
+        <div class="fact-box"><div class="fact-num">1,3 Mrd. Lj</div><div class="fact-label">Entfernung der ersten Quelle (GW150914)</div></div>
+        <div class="fact-box"><div class="fact-num">2017</div><div class="fact-label">Nobelpreis für LIGO-Entdecker</div></div>
+      </div>
+      <div class="modal-sections">
+        <div>
+          <div class="modal-section-title">✦ Was sie erzeugt</div>
+          <div class="modal-section-text">Gravitationswellen entstehen bei extrem beschleunigten, massereichen Objekten — vor allem bei verschmelzenden Schwarzen Löchern oder Neutronensternen. Die erste nachgewiesene Welle (GW150914) entstand durch zwei verschmelzende Schwarze Löcher, die in 0,2 Sekunden mehr Energie freisetzte als alle sichtbaren Sterne im Universum zusammen.</div>
+        </div>
+        <div>
+          <div class="modal-section-title">✦ LIGO — das empfindlichste Instrument der Welt</div>
+          <div class="modal-section-text">LIGOs zwei 4 km langen Arme messen Veränderungen kleiner als ein Proton — weniger als 1/10.000 des Durchmessers eines Protons. Um dieses Niveau zu erreichen, nutzen sie Laserstrahlen, Quantenoptik und komplexe Dämpfungssysteme gegen jede Erschütterung.</div>
+        </div>
+        <div>
+          <div class="modal-section-title">✦ Die Zukunft: LISA</div>
+          <div class="modal-section-text">LISA (Laser Interferometer Space Antenna) wird drei Raumschiffe in einem Dreieck mit 2,5 Millionen km Seitenlänge positionieren — ein Gravitationswellen-Detektor im Weltall. Er wird Signale auffangen, die LIGO physikalisch unmöglich messen kann.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Cursor ──
+  const cursor = document.getElementById('cursor');
+  const ring = document.getElementById('cursorRing');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    cursor.style.left = mx - 6 + 'px';
+    cursor.style.top = my - 6 + 'px';
+  });
+  (function animRing() {
+    rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
+    ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
+    requestAnimationFrame(animRing);
+  })();
+
+  // ── Star background ──
+  const cvsBg = document.getElementById('stars');
+  const ctx = cvsBg.getContext('2d');
+  let W, H, stars = [];
+  function resize() { W = cvsBg.width = innerWidth; H = cvsBg.height = innerHeight; }
+  resize(); window.addEventListener('resize', resize);
+  for (let i = 0; i < 300; i++) stars.push({ x: Math.random()*3000, y: Math.random()*3000, r: Math.random()*1.2, a: Math.random(), sp: Math.random()*0.3+0.05 });
+  let t = 0;
+  (function drawBg() {
+    ctx.clearRect(0,0,W,H); t += 0.005;
+    for (const s of stars) {
+      const alpha = Math.abs(Math.sin(t*s.sp+s.a))*0.8+0.1;
+      ctx.beginPath(); ctx.arc(s.x%W, s.y%H, s.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`; ctx.fill();
+    }
+    requestAnimationFrame(drawBg);
+  })();
+  function shootStar() {
+    const x = Math.random()*W, y = Math.random()*H*0.5; let p = 0;
+    (function draw() {
+      p += 0.02; if (p>1) return;
+      const len=80, gx=x+p*200, gy=y+p*100;
+      const g = ctx.createLinearGradient(gx-len,gy-len*.5,gx,gy);
+      g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(1,'rgba(255,255,255,.8)');
+      ctx.beginPath(); ctx.strokeStyle=g; ctx.lineWidth=1;
+      ctx.moveTo(gx-len,gy-len*.5); ctx.lineTo(gx,gy); ctx.stroke();
+      requestAnimationFrame(draw);
+    })();
+  }
+  setInterval(shootStar, 3000);
+
+  // ── Clock ──
+  function updateClock() {
+    const n=new Date();
+    document.getElementById('clock').textContent =
+      [n.getHours(),n.getMinutes(),n.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
+  }
+  setInterval(updateClock,1000); updateClock();
+
+  // ── Card hover glow ──
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('mousemove', e => {
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--mx', ((e.clientX-r.left)/r.width*100)+'%');
+      card.style.setProperty('--my', ((e.clientY-r.top)/r.height*100)+'%');
+    });
+  });
+
+  // ── Orb ──
+  let count = 0;
+  document.getElementById('orb').addEventListener('click', function() {
+    count++;
+    document.getElementById('orbCounter').textContent = count.toLocaleString('de-DE');
+    this.style.transform = 'translate(-50%,-50%) scale(0.88)';
+    setTimeout(() => this.style.transform='',150);
+    for (let i=0;i<8;i++) {
+      const p = document.createElement('div');
+      const angle = (i/8)*360;
+      const r = this.getBoundingClientRect();
+      p.style.cssText = `position:fixed;width:6px;height:6px;border-radius:50%;background:hsl(${Math.random()*60+260},90%,70%);left:${r.left+100}px;top:${r.top+100}px;pointer-events:none;z-index:100;transition:all .6s ease-out;`;
+      document.body.appendChild(p);
+      setTimeout(()=>{ p.style.transform=`translate(${Math.cos(angle*Math.PI/180)*80}px,${Math.sin(angle*Math.PI/180)*80}px)`; p.style.opacity='0'; },10);
+      setTimeout(()=>p.remove(),700);
+    }
+  });
+
+  // ── Stats counter ──
+  function formatBig(n) {
+    if(n>=1e12) return (n/1e12).toFixed(1)+' Bio.';
+    if(n>=1e9) return (n/1e9).toFixed(1)+' Mrd.';
+    if(n>=1e6) return (n/1e6).toFixed(1)+' Mio.';
+    return n.toLocaleString('de-DE');
+  }
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if(!e.isIntersecting) return;
+      const el=e.target, target=+el.dataset.target; let start=null;
+      (function step(ts){ if(!start)start=ts; const p=Math.min((ts-start)/2000,1), ease=1-Math.pow(1-p,3);
+        el.textContent=formatBig(Math.floor(ease*target)); if(p<1) requestAnimationFrame(step); })(0);
+      obs.unobserve(el);
+    });
+  },{threshold:.3});
+  document.querySelectorAll('.stat-num').forEach(el=>obs.observe(el));
+
+  // ════════════════════════════════════════
+  //  MODAL SYSTEM
+  // ════════════════════════════════════════
+  const modalAnimations = {};
+
+  function openModal(id) {
+    const backdrop = document.getElementById('modal-'+id);
+    if(!backdrop) return;
+    document.body.style.overflow = 'hidden';
+    backdrop.classList.add('open');
+    // start animation
+    if(modalAnimations[id]) modalAnimations[id].start();
+  }
+  function closeModal(backdrop) {
+    backdrop.classList.remove('open');
+    document.body.style.overflow = '';
+    const id = backdrop.id.replace('modal-','');
+    if(modalAnimations[id]) modalAnimations[id].stop();
+  }
+
+  document.querySelectorAll('.card[data-modal]').forEach(card => {
+    card.addEventListener('click', () => openModal(card.dataset.modal));
+  });
+  document.querySelectorAll('.modal-close').forEach(btn => {
+    btn.addEventListener('click', () => closeModal(btn.closest('.modal-backdrop')));
+  });
+  document.querySelectorAll('.modal-backdrop').forEach(bd => {
+    bd.addEventListener('click', e => { if(e.target===bd) closeModal(bd); });
+  });
+  document.addEventListener('keydown', e => {
+    if(e.key==='Escape') document.querySelectorAll('.modal-backdrop.open').forEach(closeModal);
+  });
+
+  // ── Helper: init canvas ──
+  function initCanvas(id, w, h) {
+    const c = document.getElementById(id);
+    if(!c) return null;
+    c.width = w; c.height = h;
+    return c.getContext('2d');
+  }
+
+  // ── Rocket Launch ──
+  (function() {
+    const btn = document.getElementById('launchBtn');
+    const wrap = document.getElementById('rocketWrap');
+    const rocket = document.getElementById('rocket');
+    const flames = document.getElementById('rocketFlames');
+    const cdEl = document.getElementById('countdown');
+    const msgEl = document.getElementById('rocketMsg');
+    const stage = document.querySelector('.rocket-stage');
+
+    // Stars in rocket canvas
+    const rc = document.getElementById('cvs-rocket');
+    const rctx = rc.getContext('2d');
+    let rW, rH, rStars=[], exhaustParticles=[];
+
+    function resizeRocket() {
+      rW = rc.width = stage.offsetWidth;
+      rH = rc.height = stage.offsetHeight;
+    }
+    resizeRocket();
+    window.addEventListener('resize', resizeRocket);
+
+    for(let i=0;i<120;i++) rStars.push({ x:Math.random(), y:Math.random(), r:Math.random()*1.2+0.3, a:Math.random() });
+
+    let rT=0, scrollY=0, launched=false;
+    function drawRocket() {
+      rctx.clearRect(0,0,rW,rH);
+      rT+=0.008;
+      // background stars
+      for(const s of rStars) {
+        const alpha = 0.2+Math.abs(Math.sin(rT+s.a))*0.6;
+        rctx.beginPath(); rctx.arc(s.x*rW, s.y*rH, s.r, 0, Math.PI*2);
+        rctx.fillStyle=`rgba(255,255,255,${alpha})`; rctx.fill();
+      }
+      if(launched) {
+        scrollY += 4;
+        // exhaust trail
+        const rx = rW/2, ry = rH-80 - scrollY;
+        if(Math.random()<0.6) exhaustParticles.push({ x:rx+(Math.random()-.5)*12, y:ry+80, vx:(Math.random()-.5)*1.5, vy:Math.random()*3+1, life:1, hue:Math.random()*40+10 });
+        exhaustParticles = exhaustParticles.filter(p=>{
+          p.x+=p.vx; p.y+=p.vy; p.life-=0.025;
+          if(p.life<=0) return false;
+          rctx.beginPath(); rctx.arc(p.x,p.y,3*p.life,0,Math.PI*2);
+          rctx.fillStyle=`hsla(${p.hue},100%,65%,${p.life})`; rctx.fill();
+          return true;
+        });
+        // planet in distance
+        const planetY = rH*0.3 + Math.sin(rT)*5;
+        const g=rctx.createRadialGradient(rW*0.15,planetY,0,rW*0.15,planetY,45);
+        g.addColorStop(0,'rgba(167,139,250,0.9)'); g.addColorStop(1,'rgba(124,58,237,0)');
+        rctx.fillStyle=g; rctx.beginPath(); rctx.arc(rW*0.15,planetY,45,0,Math.PI*2); rctx.fill();
+        // ring
+        rctx.save(); rctx.translate(rW*0.15,planetY); rctx.scale(1,0.3);
+        rctx.beginPath(); rctx.arc(0,0,60,0,Math.PI*2);
+        rctx.strokeStyle='rgba(167,139,250,0.35)'; rctx.lineWidth=6; rctx.stroke();
+        rctx.restore();
+      }
+      requestAnimationFrame(drawRocket);
+    }
+    drawRocket();
+
+    btn.addEventListener('click', function() {
+      if(launched) return;
+      btn.disabled=true;
+      let cd=3;
+      cdEl.style.opacity='1'; cdEl.textContent=cd;
+      const interval = setInterval(()=>{
+        cd--;
+        if(cd>0) { cdEl.textContent=cd; }
+        else {
+          clearInterval(interval);
+          cdEl.textContent='🚀';
+          setTimeout(()=>{ cdEl.style.opacity='0'; },600);
+          // ignite
+          flames.classList.add('active');
+          rocket.classList.add('igniting');
+          setTimeout(()=>{
+            launched=true;
+            rocket.classList.remove('igniting');
+            wrap.classList.add('launched');
+            // message
+            setTimeout(()=>{
+              msgEl.textContent='Ika ist im Weltall! 🌌';
+              msgEl.style.opacity='1';
+              setTimeout(()=>{
+                msgEl.style.opacity='0';
+                setTimeout(()=>{
+                  // reset
+                  launched=false; scrollY=0; exhaustParticles=[];
+                  wrap.classList.remove('launched');
+                  flames.classList.remove('active');
+                  btn.disabled=false;
+                  msgEl.textContent='';
+                },600);
+              },2500);
+            },1200);
+          },800);
+        }
+      },1000);
+    });
+  })();
+
+  // ════ ANIMATION: Galaxien — spiral galaxy ════
+  (function() {
+    let raf, cxt, W=780, H=260;
+    let angle=0;
+    const particles = [];
+    function build() {
+      cxt = initCanvas('cvs-galaxien', W, H);
+      if(!cxt) return;
+      particles.length=0;
+      for(let arm=0; arm<4; arm++) {
+        for(let i=0; i<120; i++) {
+          const r = i*0.55+5, a = i*0.25 + arm*Math.PI/2;
+          const spread = (i/120)*28;
+          particles.push({
+            r, a,
+            ox: (Math.random()-0.5)*spread,
+            oy: (Math.random()-0.5)*spread,
+            size: Math.random()*2+0.5,
+            brightness: Math.random()*0.7+0.3,
+            hue: arm%2===0 ? 260 : 200
+          });
+        }
+      }
+      for(let i=0;i<80;i++) particles.push({ r:Math.random()*12, a:Math.random()*Math.PI*2, ox:0,oy:0, size:Math.random()*2.5+0.5, brightness:Math.random()*0.9+0.1, hue:280, core:true });
+    }
+    function draw() {
+      if(!cxt) return;
+      cxt.clearRect(0,0,W,H);
+      angle += 0.003;
+      const cx=W/2, cy=H/2;
+      // glow core
+      const g = cxt.createRadialGradient(cx,cy,0,cx,cy,50);
+      g.addColorStop(0,'rgba(200,160,255,0.8)');
+      g.addColorStop(0.3,'rgba(120,80,200,0.3)');
+      g.addColorStop(1,'transparent');
+      cxt.fillStyle=g; cxt.beginPath(); cxt.arc(cx,cy,50,0,Math.PI*2); cxt.fill();
+
+      for(const p of particles) {
+        const a = p.a+angle*(p.core? 0.8 : 0.15 + 0.5/(p.r+1));
+        const x = cx + Math.cos(a)*p.r + p.ox;
+        const y = cy + Math.sin(a)*p.r*0.45 + p.oy;
+        cxt.beginPath();
+        cxt.arc(x,y,p.size,0,Math.PI*2);
+        cxt.fillStyle=`hsla(${p.hue},80%,80%,${p.brightness})`;
+        cxt.fill();
+      }
+      raf = requestAnimationFrame(draw);
+    }
+    modalAnimations['galaxien'] = {
+      start() { build(); draw(); },
+      stop() { cancelAnimationFrame(raf); }
+    };
+  })();
+
+  // ════ ANIMATION: Schwarzes Loch — accretion disk + lensing ════
+  (function() {
+    let raf, cxt, W=780, H=260;
+    let t=0;
+    const particles=[];
+    function build() {
+      cxt = initCanvas('cvs-blackhole',W,H);
+      if(!cxt) return;
+      particles.length=0;
+      for(let i=0;i<200;i++) {
+        const r = 60+Math.random()*90;
+        particles.push({ r, a: Math.random()*Math.PI*2, speed: (0.003+Math.random()*0.008)*(1/(r*0.01+0.5)), brightness: Math.random(), size: Math.random()*2.5+0.5 });
+      }
+    }
+    function draw() {
+      if(!cxt) return;
+      t+=0.016;
+      cxt.clearRect(0,0,W,H);
+      const cx=W/2, cy=H/2;
+
+      // outer glow
+      const g2 = cxt.createRadialGradient(cx,cy,40,cx,cy,160);
+      g2.addColorStop(0,'rgba(255,120,0,0.0)');
+      g2.addColorStop(0.4,'rgba(255,80,0,0.08)');
+      g2.addColorStop(0.7,'rgba(200,60,0,0.05)');
+      g2.addColorStop(1,'transparent');
+      cxt.fillStyle=g2; cxt.fillRect(0,0,W,H);
+
+      // accretion particles
+      for(const p of particles) {
+        p.a += p.speed;
+        const x = cx + Math.cos(p.a)*p.r;
+        const y = cy + Math.sin(p.a)*p.r*0.28; // flatten disk
+        const dist = p.r;
+        const heat = Math.max(0,1-(dist-60)/90);
+        const hue = 20+heat*20;
+        const sat = 80+heat*20;
+        cxt.beginPath();
+        cxt.arc(x,y,p.size,0,Math.PI*2);
+        cxt.fillStyle=`hsla(${hue},${sat}%,70%,${p.brightness*0.8})`;
+        cxt.fill();
+      }
+
+      // black hole core
+      const g = cxt.createRadialGradient(cx,cy,0,cx,cy,50);
+      g.addColorStop(0,'#000'); g.addColorStop(0.7,'#000'); g.addColorStop(1,'rgba(0,0,0,0)');
+      cxt.fillStyle=g; cxt.beginPath(); cxt.arc(cx,cy,50,0,Math.PI*2); cxt.fill();
+
+      // photon ring
+      cxt.beginPath(); cxt.arc(cx,cy,52,0,Math.PI*2);
+      cxt.strokeStyle=`rgba(255,200,80,${0.3+Math.sin(t)*0.1})`; cxt.lineWidth=2; cxt.stroke();
+
+      raf = requestAnimationFrame(draw);
+    }
+    modalAnimations['blackhole'] = { start(){ build(); draw(); }, stop(){ cancelAnimationFrame(raf); } };
+  })();
+
+  // ════ ANIMATION: Neutronenstern — rotating pulsar beams ════
+  (function() {
+    let raf, cxt, W=780, H=260, t=0;
+    function build() { cxt = initCanvas('cvs-neutron',W,H); }
+    function draw() {
+      if(!cxt) return;
+      t+=0.04;
+      cxt.clearRect(0,0,W,H);
+      const cx=W/2, cy=H/2;
+
+      // pulsing magnetic field lines
+      for(let i=0;i<6;i++) {
+        const a = i/6*Math.PI*2+t*0.05;
+        cxt.beginPath();
+        cxt.strokeStyle=`rgba(100,180,255,0.06)`;
+        cxt.lineWidth=1;
+        for(let r=30;r<200;r+=3) {
+          const x=cx+Math.cos(a+Math.sin(r*0.05)*0.5)*r;
+          const y=cy+Math.sin(a+Math.sin(r*0.05)*0.5)*r*0.6;
+          r===30?cxt.moveTo(x,y):cxt.lineTo(x,y);
+        }
+        cxt.stroke();
+      }
+
+      // rotating beam 1
+      const bAngle = t;
+      for(let w=0;w<3;w++) {
+        const a = bAngle+w*0.06;
+        const grad = cxt.createLinearGradient(cx,cy,cx+Math.cos(a)*180,cy+Math.sin(a)*180);
+        grad.addColorStop(0,`rgba(100,200,255,${0.6-w*0.2})`);
+        grad.addColorStop(1,'rgba(100,200,255,0)');
+        cxt.beginPath(); cxt.moveTo(cx,cy);
+        cxt.lineTo(cx+Math.cos(a)*200,cy+Math.sin(a)*200);
+        cxt.strokeStyle=grad; cxt.lineWidth=3-w; cxt.stroke();
+      }
+      // opposite beam
+      for(let w=0;w<3;w++) {
+        const a = bAngle+Math.PI+w*0.06;
+        const grad = cxt.createLinearGradient(cx,cy,cx+Math.cos(a)*180,cy+Math.sin(a)*180);
+        grad.addColorStop(0,`rgba(100,200,255,${0.6-w*0.2})`);
+        grad.addColorStop(1,'rgba(100,200,255,0)');
+        cxt.beginPath(); cxt.moveTo(cx,cy);
+        cxt.lineTo(cx+Math.cos(a)*200,cy+Math.sin(a)*200);
+        cxt.strokeStyle=grad; cxt.lineWidth=3-w; cxt.stroke();
+      }
+
+      // core star
+      const g = cxt.createRadialGradient(cx,cy,0,cx,cy,28);
+      g.addColorStop(0,'rgba(200,240,255,1)');
+      g.addColorStop(0.4,'rgba(100,180,255,0.8)');
+      g.addColorStop(1,'rgba(50,100,200,0)');
+      cxt.fillStyle=g; cxt.beginPath(); cxt.arc(cx,cy,28,0,Math.PI*2); cxt.fill();
+
+      // pulse ring
+      const pr = 35+Math.sin(t*3)*8;
+      cxt.beginPath(); cxt.arc(cx,cy,pr,0,Math.PI*2);
+      cxt.strokeStyle=`rgba(150,220,255,${0.2+Math.sin(t*3)*0.1})`; cxt.lineWidth=1.5; cxt.stroke();
+
+      raf = requestAnimationFrame(draw);
+    }
+    modalAnimations['neutron'] = { start(){ build(); draw(); }, stop(){ cancelAnimationFrame(raf); } };
+  })();
+
+  // ════ ANIMATION: Dunkle Materie — invisible particle web ════
+  (function() {
+    let raf, cxt, W=780, H=260, t=0;
+    const nodes=[];
+    function build() {
+      cxt = initCanvas('cvs-darkmatter',W,H);
+      if(!cxt) return;
+      nodes.length=0;
+      for(let i=0;i<60;i++) nodes.push({ x:Math.random()*W, y:Math.random()*H, vx:(Math.random()-.5)*0.4, vy:(Math.random()-.5)*0.4, visible:Math.random()<0.3 });
+    }
+    function draw() {
+      if(!cxt) return;
+      t+=0.01;
+      cxt.clearRect(0,0,W,H);
+
+      for(const n of nodes) {
+        n.x+=n.vx; n.y+=n.vy;
+        if(n.x<0||n.x>W) n.vx*=-1;
+        if(n.y<0||n.y>H) n.vy*=-1;
+        n.glow = 0.5+Math.sin(t*2+n.x)*0.5;
+      }
+
+      // connections — dark matter web
+      for(let i=0;i<nodes.length;i++) {
+        for(let j=i+1;j<nodes.length;j++) {
+          const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y;
+          const dist=Math.sqrt(dx*dx+dy*dy);
+          if(dist<120) {
+            const alpha=(1-dist/120)*0.15;
+            cxt.beginPath();
+            cxt.strokeStyle=`rgba(167,139,250,${alpha})`;
+            cxt.lineWidth=0.8;
+            cxt.moveTo(nodes[i].x,nodes[i].y);
+            cxt.lineTo(nodes[j].x,nodes[j].y);
+            cxt.stroke();
+          }
+        }
+      }
+
+      // visible matter dots (bright) vs dark matter (barely visible)
+      for(const n of nodes) {
+        if(n.visible) {
+          cxt.beginPath(); cxt.arc(n.x,n.y,3,0,Math.PI*2);
+          cxt.fillStyle=`rgba(255,255,255,${n.glow*0.9})`; cxt.fill();
+        } else {
+          // dark matter — barely visible shimmer
+          cxt.beginPath(); cxt.arc(n.x,n.y,2,0,Math.PI*2);
+          cxt.fillStyle=`rgba(167,139,250,${n.glow*0.08})`; cxt.fill();
+        }
+      }
+
+      // label
+      cxt.fillStyle='rgba(167,139,250,0.3)';
+      cxt.font='11px monospace'; cxt.letterSpacing='2px';
+      cxt.fillText('95% DES UNIVERSUMS — UNSICHTBAR', 20, H-15);
+
+      raf = requestAnimationFrame(draw);
+    }
+    modalAnimations['darkmatter'] = { start(){ build(); draw(); }, stop(){ cancelAnimationFrame(raf); } };
+  })();
+
+  // ════ ANIMATION: Exoplaneten — solar system orbits ════
+  (function() {
+    let raf, cxt, W=780, H=260, t=0;
+    const planets = [
+      { r:28, speed:2.2, size:4, color:'#e87', orbit:0 },
+      { r:45, speed:1.6, size:5, color:'#fa7', orbit:0.5 },
+      { r:65, speed:1.1, size:6, color:'#7af', orbit:1.2 },
+      { r:88, speed:0.7, size:5, color:'#f77', orbit:2.1 },
+      { r:112, speed:0.4, size:8, color:'#fb5', orbit:3.0 },
+    ];
+    function build() { cxt = initCanvas('cvs-exoplanets',W,H); }
+    function draw() {
+      if(!cxt) return;
+      t+=0.012;
+      cxt.clearRect(0,0,W,H);
+      const cx=W/2, cy=H/2;
+
+      // star glow
+      const g = cxt.createRadialGradient(cx,cy,0,cx,cy,22);
+      g.addColorStop(0,'rgba(255,240,180,1)');
+      g.addColorStop(0.4,'rgba(255,180,80,0.6)');
+      g.addColorStop(1,'transparent');
+      cxt.fillStyle=g; cxt.beginPath(); cxt.arc(cx,cy,22,0,Math.PI*2); cxt.fill();
+
+      for(const p of planets) {
+        // orbit ring
+        cxt.beginPath(); cxt.arc(cx,cy,p.r,0,Math.PI*2);
+        cxt.strokeStyle='rgba(255,255,255,0.06)'; cxt.lineWidth=1; cxt.stroke();
+
+        // planet
+        const a = p.orbit + t*p.speed;
+        const x = cx+Math.cos(a)*p.r, y = cy+Math.sin(a)*p.r*0.55;
+        const pg = cxt.createRadialGradient(x-p.size*0.3,y-p.size*0.3,0,x,y,p.size);
+        pg.addColorStop(0,'rgba(255,255,255,0.8)');
+        pg.addColorStop(0.3,p.color+'cc');
+        pg.addColorStop(1,p.color+'44');
+        cxt.beginPath(); cxt.arc(x,y,p.size,0,Math.PI*2);
+        cxt.fillStyle=pg; cxt.fill();
+      }
+
+      // habitable zone ring
+      cxt.beginPath(); cxt.arc(cx,cy,60,0,Math.PI*2);
+      cxt.strokeStyle='rgba(100,220,100,0.12)'; cxt.lineWidth=14; cxt.stroke();
+      cxt.fillStyle='rgba(100,220,100,0.25)'; cxt.font='9px monospace';
+      cxt.fillText('HABITABLE ZONE',cx+46,cy-4);
+
+      raf = requestAnimationFrame(draw);
+    }
+    modalAnimations['exoplanets'] = { start(){ build(); draw(); }, stop(){ cancelAnimationFrame(raf); } };
+  })();
+
+  // ════ ANIMATION: Gravitationswellen — ripples ════
+  (function() {
+    let raf, cxt, W=780, H=260, t=0;
+    function build() { cxt = initCanvas('cvs-gravwaves',W,H); }
+    function draw() {
+      if(!cxt) return;
+      t+=0.025;
+      cxt.clearRect(0,0,W,H);
+
+      // two merging objects
+      const cx1=W/2-40+Math.sin(t*2)*20, cy1=H/2+Math.cos(t*2)*14;
+      const cx2=W/2+40-Math.sin(t*2)*20, cy2=H/2-Math.cos(t*2)*14;
+      const merged = t>8;
+
+      // ripple waves emanating from center
+      const numRings = 10;
+      for(let i=0;i<numRings;i++) {
+        const phase = (t*0.8 - i*0.7) % (Math.PI*2);
+        const r = ((phase/(Math.PI*2))*260)+20;
+        const alpha = Math.max(0, 0.5-r/260) * (0.5+Math.sin(t+i)*0.3);
+        if(alpha<=0) continue;
+        cxt.beginPath(); cxt.arc(W/2,H/2,r,0,Math.PI*2);
+        cxt.strokeStyle=`rgba(167,139,250,${alpha})`; cxt.lineWidth=1.5; cxt.stroke();
+      }
+
+      // draw objects
+      if(!merged) {
+        [cx1,cx2].forEach((cx,i) => {
+          const cy = i===0?cy1:cy2;
+          const g=cxt.createRadialGradient(cx,cy,0,cx,cy,18);
+          g.addColorStop(0,'rgba(255,255,255,0.9)');
+          g.addColorStop(0.5,i===0?'rgba(200,100,255,0.6)':'rgba(100,200,255,0.6)');
+          g.addColorStop(1,'transparent');
+          cxt.fillStyle=g; cxt.beginPath(); cxt.arc(cx,cy,18,0,Math.PI*2); cxt.fill();
+        });
+        // connector
+        cxt.beginPath(); cxt.moveTo(cx1,cy1); cxt.lineTo(cx2,cy2);
+        cxt.strokeStyle='rgba(255,255,255,0.08)'; cxt.lineWidth=1; cxt.stroke();
+      }
+
+      // space-time grid distortion
+      const gridStep=32;
+      for(let gx=0;gx<=W;gx+=gridStep) {
+        cxt.beginPath();
+        for(let gy=0;gy<=H;gy+=4) {
+          const dx=gx-W/2, dy=gy-H/2, dist=Math.sqrt(dx*dx+dy*dy)||1;
+          const wave=Math.sin(dist*0.08-t*2)*6/(dist*0.05+1);
+          const px=gx+wave*dx/dist, py=gy+wave*dy/dist;
+          gy===0?cxt.moveTo(px,py):cxt.lineTo(px,py);
+        }
+        cxt.strokeStyle='rgba(255,255,255,0.04)'; cxt.lineWidth=1; cxt.stroke();
+      }
+
+      raf = requestAnimationFrame(draw);
+    }
+    modalAnimations['gravwaves'] = { start(){ build(); draw(); }, stop(){ cancelAnimationFrame(raf); } };
+  })();
+</script>
+</body>
+</html>
