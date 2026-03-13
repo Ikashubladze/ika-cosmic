@@ -466,6 +466,76 @@
   </div>
 </section>
 
+<!-- Login / Profil Button (oben rechts) -->
+<div id="authWidget" style="position:fixed;top:1.2rem;right:1.5rem;z-index:10000;display:flex;align-items:center;gap:0.75rem;">
+  <span id="authUserLabel" style="font-size:0.8rem;color:#a78bfa;display:none;"></span>
+  <button id="authBtn" onclick="openAuthModal()" style="background:rgba(167,139,250,0.15);border:1px solid rgba(167,139,250,0.4);color:#a78bfa;padding:0.4rem 1rem;border-radius:99px;cursor:pointer;font-size:0.82rem;letter-spacing:0.04em;transition:background 0.2s;">Einloggen</button>
+  <button id="myStatsBtn" onclick="openMyStats()" style="display:none;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.4);color:#38bdf8;padding:0.4rem 0.9rem;border-radius:99px;cursor:pointer;font-size:0.82rem;">Meine Stats</button>
+  <button id="logoutBtn" onclick="cosmicLogout()" style="display:none;background:rgba(255,80,80,0.12);border:1px solid rgba(255,80,80,0.3);color:#f87171;padding:0.4rem 0.8rem;border-radius:99px;cursor:pointer;font-size:0.8rem;">Logout</button>
+</div>
+
+<!-- Auth Modal -->
+<div id="authModal" style="display:none;position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
+  <div style="background:#0d0d22;border:1px solid #2a2a4a;border-radius:20px;padding:2.5rem;width:100%;max-width:380px;margin:1rem;position:relative;">
+    <button onclick="closeAuthModal()" style="position:absolute;top:1rem;right:1.2rem;background:none;border:none;color:#555;font-size:1.4rem;cursor:pointer;line-height:1;">×</button>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:1rem;margin-bottom:2rem;">
+      <button id="tabLogin" onclick="switchTab('login')" style="flex:1;padding:0.6rem;border-radius:10px;border:none;background:#a78bfa;color:#000;font-weight:700;cursor:pointer;font-size:0.9rem;">Login</button>
+      <button id="tabRegister" onclick="switchTab('register')" style="flex:1;padding:0.6rem;border-radius:10px;border:1px solid #2a2a4a;background:transparent;color:#888;cursor:pointer;font-size:0.9rem;">Registrieren</button>
+    </div>
+
+    <div id="authError" style="display:none;background:rgba(248,113,113,0.15);border:1px solid rgba(248,113,113,0.3);color:#f87171;padding:0.6rem 1rem;border-radius:8px;font-size:0.85rem;margin-bottom:1rem;"></div>
+    <div id="authSuccess" style="display:none;background:rgba(52,211,153,0.15);border:1px solid rgba(52,211,153,0.3);color:#34d399;padding:0.6rem 1rem;border-radius:8px;font-size:0.85rem;margin-bottom:1rem;"></div>
+
+    <input id="authUsername" type="text" placeholder="Username" autocomplete="username"
+      style="width:100%;padding:0.75rem 1rem;background:#111128;border:1px solid #2a2a4a;border-radius:10px;color:#fff;font-size:0.95rem;margin-bottom:0.75rem;outline:none;">
+    <input id="authPassword" type="password" placeholder="Passwort" autocomplete="current-password"
+      style="width:100%;padding:0.75rem 1rem;background:#111128;border:1px solid #2a2a4a;border-radius:10px;color:#fff;font-size:0.95rem;margin-bottom:1.5rem;outline:none;">
+
+    <button id="authSubmitBtn" onclick="submitAuth()"
+      style="width:100%;padding:0.8rem;background:linear-gradient(135deg,#a78bfa,#38bdf8);border:none;border-radius:10px;color:#000;font-weight:800;font-size:1rem;cursor:pointer;letter-spacing:0.05em;">
+      Login
+    </button>
+  </div>
+</div>
+
+<!-- Meine Statistiken Panel -->
+<div id="myStatsModal" style="display:none;position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,0.8);backdrop-filter:blur(10px);align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem;">
+  <div style="background:#0d0d22;border:1px solid #2a2a4a;border-radius:20px;padding:2rem;width:100%;max-width:560px;margin:auto;position:relative;">
+    <button onclick="closeMyStats()" style="position:absolute;top:1rem;right:1.2rem;background:none;border:none;color:#555;font-size:1.5rem;cursor:pointer;line-height:1;">×</button>
+    <h2 id="myStatsTitle" style="background:linear-gradient(135deg,#a78bfa,#38bdf8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-size:1.4rem;margin-bottom:1.5rem;">📊 Meine Statistiken</h2>
+
+    <div id="myStatsLoading" style="color:#555;text-align:center;padding:2rem;">Lade Daten...</div>
+
+    <div id="myStatsContent" style="display:none;">
+      <!-- Karten -->
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+        <div style="flex:1;min-width:120px;background:#111128;border:1px solid #2a2a4a;border-radius:12px;padding:1.2rem 1.5rem;">
+          <div id="stat_total_clicks" style="font-size:2.2rem;font-weight:800;color:#a78bfa;">–</div>
+          <div style="font-size:0.8rem;color:#666;margin-top:0.2rem;">Klicks gesamt</div>
+        </div>
+        <div style="flex:1;min-width:120px;background:#111128;border:1px solid #2a2a4a;border-radius:12px;padding:1.2rem 1.5rem;">
+          <div id="stat_total_rockets" style="font-size:2.2rem;font-weight:800;color:#38bdf8;">–</div>
+          <div style="font-size:0.8rem;color:#666;margin-top:0.2rem;">Raketen gestartet</div>
+        </div>
+      </div>
+
+      <!-- Klicks pro Tag -->
+      <div style="margin-bottom:1.5rem;">
+        <h3 style="color:#38bdf8;font-size:0.95rem;margin-bottom:0.75rem;letter-spacing:0.05em;">KLICKS PRO TAG</h3>
+        <div id="stat_per_day" style="background:#111128;border:1px solid #1a1a2e;border-radius:10px;overflow:hidden;"></div>
+      </div>
+
+      <!-- Top Elemente -->
+      <div>
+        <h3 style="color:#38bdf8;font-size:0.95rem;margin-bottom:0.75rem;letter-spacing:0.05em;">MEIST GEKLICKT</h3>
+        <div id="stat_top_elements" style="background:#111128;border:1px solid #1a1a2e;border-radius:10px;overflow:hidden;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <footer class="footer">✦ Cosmic Explorer mit Ika ✦ &nbsp;|&nbsp; Erstellt mit reinem HTML &amp; CSS &amp; JS<br>Das Universum ist groß. Erkunde es.</footer>
 
 <!-- ═══════════════ MODALS ═══════════════ -->
@@ -883,6 +953,8 @@
             launched=true;
             rocket.classList.remove('igniting');
             wrap.classList.add('launched');
+            // Track Raketenlaunche
+            fetch('http://localhost:3001/api/rocket/play', { method:'POST', headers: window._cosmicAuthHeaders ? window._cosmicAuthHeaders() : {'Content-Type':'application/json'}, body: JSON.stringify({ session_id: window._cosmicSession }) }).catch(()=>{});
             // message
             setTimeout(()=>{
               msgEl.textContent='Ika ist im Weltall! 🌌';
@@ -1247,6 +1319,200 @@
       raf = requestAnimationFrame(draw);
     }
     modalAnimations['gravwaves'] = { start(){ build(); draw(); }, stop(){ cancelAnimationFrame(raf); } };
+  })();
+
+  // ── COSMIC TRACKER ──────────────────────────────────────
+  (function() {
+    window._cosmicSession = sessionStorage.getItem('csid') || (() => {
+      const id = Math.random().toString(36).slice(2);
+      sessionStorage.setItem('csid', id);
+      return id;
+    })();
+
+    const API = 'http://localhost:3001';
+    window._cosmicAPI = API;
+
+    function authHeaders() {
+      const token = localStorage.getItem('cosmic_token');
+      const h = { 'Content-Type': 'application/json' };
+      if (token) h['Authorization'] = 'Bearer ' + token;
+      return h;
+    }
+    window._cosmicAuthHeaders = authHeaders;
+
+    document.addEventListener('click', function(e) {
+      const el = e.target;
+      const label = el.id || el.className?.split(' ')[0] || el.tagName.toLowerCase();
+      fetch(API + '/api/click', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          x: Math.round(e.clientX),
+          y: Math.round(e.clientY),
+          page_width: window.innerWidth,
+          page_height: window.innerHeight,
+          element: label.slice(0, 60),
+          session_id: window._cosmicSession
+        })
+      }).catch(() => {});
+    });
+
+    // Auth UI Logik
+    window._cosmicAuthTab = 'login';
+
+    window.openAuthModal = function() {
+      document.getElementById('authModal').style.display = 'flex';
+      document.getElementById('authError').style.display = 'none';
+      document.getElementById('authSuccess').style.display = 'none';
+      document.getElementById('authUsername').focus();
+    };
+    window.closeAuthModal = function() {
+      document.getElementById('authModal').style.display = 'none';
+    };
+    window.switchTab = function(tab) {
+      window._cosmicAuthTab = tab;
+      const isLogin = tab === 'login';
+      document.getElementById('tabLogin').style.background = isLogin ? '#a78bfa' : 'transparent';
+      document.getElementById('tabLogin').style.color = isLogin ? '#000' : '#888';
+      document.getElementById('tabLogin').style.border = isLogin ? 'none' : '1px solid #2a2a4a';
+      document.getElementById('tabRegister').style.background = !isLogin ? '#a78bfa' : 'transparent';
+      document.getElementById('tabRegister').style.color = !isLogin ? '#000' : '#888';
+      document.getElementById('tabRegister').style.border = !isLogin ? 'none' : '1px solid #2a2a4a';
+      document.getElementById('authSubmitBtn').textContent = isLogin ? 'Login' : 'Registrieren';
+      document.getElementById('authError').style.display = 'none';
+      document.getElementById('authSuccess').style.display = 'none';
+    };
+
+    function updateAuthUI(user) {
+      if (user) {
+        document.getElementById('authUserLabel').textContent = '👤 ' + user.username;
+        document.getElementById('authUserLabel').style.display = 'inline';
+        document.getElementById('authBtn').style.display = 'none';
+        document.getElementById('myStatsBtn').style.display = 'inline';
+        document.getElementById('logoutBtn').style.display = 'inline';
+      } else {
+        document.getElementById('authUserLabel').style.display = 'none';
+        document.getElementById('authBtn').style.display = 'inline';
+        document.getElementById('myStatsBtn').style.display = 'none';
+        document.getElementById('logoutBtn').style.display = 'none';
+      }
+    }
+
+    window.openMyStats = async function() {
+      const modal = document.getElementById('myStatsModal');
+      modal.style.display = 'flex';
+      document.getElementById('myStatsLoading').style.display = 'block';
+      document.getElementById('myStatsContent').style.display = 'none';
+
+      try {
+        const r = await fetch(API + '/api/me/stats', { headers: authHeaders() });
+        if (!r.ok) throw new Error();
+        const data = await r.json();
+
+        document.getElementById('stat_total_clicks').textContent = data.clicks.total;
+        document.getElementById('stat_total_rockets').textContent = data.rockets.total;
+
+        // Klicks pro Tag
+        const perDay = data.clicks.per_day;
+        if (perDay.length === 0) {
+          document.getElementById('stat_per_day').innerHTML = '<p style="padding:1rem;color:#444;font-size:0.85rem;">Noch keine Daten</p>';
+        } else {
+          const max = Math.max(...perDay.map(d => d.count), 1);
+          document.getElementById('stat_per_day').innerHTML = perDay.map(d => `
+            <div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 1rem;border-bottom:1px solid #1a1a2e;">
+              <span style="font-size:0.8rem;color:#555;min-width:90px;">${d.day}</span>
+              <div style="flex:1;background:#1a1a3a;border-radius:99px;height:8px;overflow:hidden;">
+                <div style="width:${Math.round(d.count/max*100)}%;height:100%;background:linear-gradient(90deg,#a78bfa,#38bdf8);border-radius:99px;"></div>
+              </div>
+              <span style="font-size:0.85rem;color:#a78bfa;min-width:24px;text-align:right;">${d.count}</span>
+            </div>`).join('');
+        }
+
+        // Top Elemente
+        const topEl = data.clicks.top_elements;
+        if (topEl.length === 0) {
+          document.getElementById('stat_top_elements').innerHTML = '<p style="padding:1rem;color:#444;font-size:0.85rem;">Noch keine Daten</p>';
+        } else {
+          const maxEl = Math.max(...topEl.map(e => e.count), 1);
+          document.getElementById('stat_top_elements').innerHTML = topEl.map(e => `
+            <div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 1rem;border-bottom:1px solid #1a1a2e;">
+              <span style="font-size:0.82rem;color:#ccc;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.element || '–'}</span>
+              <div style="flex:1;background:#1a1a3a;border-radius:99px;height:8px;overflow:hidden;">
+                <div style="width:${Math.round(e.count/maxEl*100)}%;height:100%;background:linear-gradient(90deg,#38bdf8,#34d399);border-radius:99px;"></div>
+              </div>
+              <span style="font-size:0.85rem;color:#38bdf8;min-width:24px;text-align:right;">${e.count}</span>
+            </div>`).join('');
+        }
+
+        document.getElementById('myStatsLoading').style.display = 'none';
+        document.getElementById('myStatsContent').style.display = 'block';
+      } catch {
+        document.getElementById('myStatsLoading').textContent = 'Fehler beim Laden. Bitte erneut versuchen.';
+        document.getElementById('myStatsLoading').style.color = '#f87171';
+      }
+    };
+
+    window.closeMyStats = function() {
+      document.getElementById('myStatsModal').style.display = 'none';
+    };
+
+    window.submitAuth = async function() {
+      const username = document.getElementById('authUsername').value.trim();
+      const password = document.getElementById('authPassword').value;
+      const errEl = document.getElementById('authError');
+      const okEl = document.getElementById('authSuccess');
+      errEl.style.display = 'none';
+      okEl.style.display = 'none';
+      if (!username || !password) {
+        errEl.textContent = 'Bitte Username und Passwort eingeben.';
+        errEl.style.display = 'block';
+        return;
+      }
+      const endpoint = window._cosmicAuthTab === 'login' ? '/api/auth/login' : '/api/auth/register';
+      try {
+        const r = await fetch(API + endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          errEl.textContent = data.error || 'Fehler aufgetreten.';
+          errEl.style.display = 'block';
+          return;
+        }
+        localStorage.setItem('cosmic_token', data.token);
+        localStorage.setItem('cosmic_user', JSON.stringify(data.user));
+        updateAuthUI(data.user);
+        okEl.textContent = window._cosmicAuthTab === 'login'
+          ? `Willkommen zurück, ${data.user.username}! 🚀`
+          : `Account erstellt! Willkommen, ${data.user.username}! 🌌`;
+        okEl.style.display = 'block';
+        setTimeout(closeAuthModal, 1200);
+      } catch {
+        errEl.textContent = 'Server nicht erreichbar.';
+        errEl.style.display = 'block';
+      }
+    };
+
+    window.cosmicLogout = function() {
+      localStorage.removeItem('cosmic_token');
+      localStorage.removeItem('cosmic_user');
+      updateAuthUI(null);
+    };
+
+    // Enter-Taste im Modal
+    ['authUsername', 'authPassword'].forEach(id => {
+      document.getElementById(id).addEventListener('keydown', e => {
+        if (e.key === 'Enter') window.submitAuth();
+      });
+    });
+
+    // Beim Laden: gespeicherten User wiederherstellen
+    const savedUser = localStorage.getItem('cosmic_user');
+    if (savedUser) {
+      try { updateAuthUI(JSON.parse(savedUser)); } catch {}
+    }
   })();
 </script>
 </body>
